@@ -891,14 +891,13 @@ PaletteNames {
     Name[num_palette_names]
 }
 
-Each Track targets a particular Material and tells you when its texture/palette
-should change. The frames when they change are called keyframes.
-
-OPEN QUESTION: how does a Track select the Material to target?
+Each Track targets a Material with the same Name as the Track, and tells you
+when its texture/palette should change. The frames when they change are called
+keyframes.
 
 TrackData {
     num_keyframes:   u32
-    unknown:         u16    (suspect this selects the material to target somehow)
+    unknown:         u16
     offset:          u16    (points to a Track; relative to the containing PatternAnimation)
 }
 
