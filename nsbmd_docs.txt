@@ -60,7 +60,7 @@ have an index, but you can't iterate over them.
 
 Offsets usually have names ending with _off. Offset are always in bytes. I'll
 alway say what an offset is relative to. Add the offset to the location of
-whatever its relative to find the actual data.
+whatever its relative to to find the actual data.
 
 Bit-fields are written like this
 
@@ -114,7 +114,7 @@ NameList(T) {
 Containers
 ==========
 A Container is the top-level object in the binary format of a NSB__ file. A
-container holds subfiles. Subfiles, in turn, hold individual models, animations,
+Container holds subfiles. Subfiles, in turn, hold individual models, animations,
 etc.
 
 Containers and subfiles start with a four-byte stamp (magic number) that
@@ -167,8 +167,9 @@ MDL {
     (each u32 gives the offset to a Model relative to this MDL)
 }
 
-A Model is 3D model. A Model stores a script (the RenderCommandList) that draws
-the models. All the other data it contains exists to be used by this script.
+A Model is 3D model. The process of drawing a Model consists of executing a list
+of RenderCommands, which calculate skinning matrices, set material properties,
+and draw the individual pieces of the Model (the Meshes).
 
 Model {
     filesize:          u32    (size of Model+all its data?)
@@ -299,8 +300,8 @@ Bind Material (0x4, 0x24, 0x44)
 
 Draw Mesh (0x05)
   1 parameter
-    * index of the mesh to draw
-  Draws a mesh.
+    * index of the Mesh to draw
+  Draws a Mesh.
 
 Multiply Current Matrix with Bone Matrix (0x06, 0x26, 0x46, 0x66)
   3 parameters if opcode == 0x06
@@ -515,7 +516,7 @@ BoneMatrix {
     (used for rotation matrix; unknown why its here)
     m0:      num(1.3.12)
 
-    (translation; when missing, use (0 0 0))
+    (translation; default is (0 0 0))
     if t == 0 {
         Translation {
             x:   num(1.19.12)
@@ -524,7 +525,7 @@ BoneMatrix {
         }
     }
 
-    (rotation; when mising use identity matrix)
+    (rotation; default is identity matrix)
     if rp == 1 {
         a:        num(1.3.12)
         b:        num(1.3.12)
@@ -538,7 +539,7 @@ BoneMatrix {
         )
     }
 
-    (scale; when missing use (1 1 1))
+    (scale; default is (1 1 1))
     if s == 0 {
         Scale {
             x:   num(1.19.12)
@@ -613,7 +614,7 @@ PivotMatrices {
     PivotMatrix[]
 }
 BasisMatrices {
-    BasisMatrices[]
+    BasisMatrix[]
 }
 
 A Track consists of channels. A channel is a connection between one of the seven
@@ -649,17 +650,17 @@ Track {
     }
 
     if no_translation_channels == 0 {
-        for i=0,1,2 {
-            Curve
-        }
+        Curve     (translation X)
+        Curve     (translation Y)
+        Curve     (translation Z)
     }
     if no_rotation_channel == 0 {
-        Curve
+        Curve     (rotation)
     }
     if no_scale_channels == 0 {
-        for i=0,1,2 {
-            Curve
-        }
+        Curve     (scale X)
+        Curve     (scale Y)
+        Curve     (scale Z)
     }
 }
 
@@ -766,8 +767,8 @@ it's in, and the low bits give the index into that array.
 
 RotMatrixIdx {
     u16 {
-        index: bits(0, 15)
-        is_pivot: bits(15, 16)
+        index: bits(0,15)
+        is_pivot: bits(15,16)
     }
 }
 
@@ -877,7 +878,7 @@ PatternAnimation {
     texture_names_off:  u16    (relative to this PatternAnimation)
     palette_names_off:  u16    (relative to this PatternAnimation)
 
-    tracks:             NameList(TrackData)
+    tracks:             NameList(Track)
 }
 
 texture_names_off points to a list of texture names that will be used by the
@@ -892,23 +893,24 @@ PaletteNames {
 }
 
 Each Track targets a Material with the same Name as the Track, and tells you
-when its texture/palette should change. The frames when they change are called
-keyframes.
-
-TrackData {
-    num_keyframes:   u32
-    unknown:         u16
-    offset:          u16    (points to a Track; relative to the containing PatternAnimation)
-}
+when its texture/palette should change.
 
 Track {
-    keyframes:     KeyFrameDef[num_keyframes]
+    num_keyframes:   u32
+    unknown:         u16
+
+    offset:          u16
+    (points to a Keyframe[num_keyframes]; relative to the containing PatternAnimation)
 }
 
-KeyframeDef {
+Each Keyframe says that the texture/palette Names should change to the given
+values at the given frame. The values hold until they are changed at the next
+Keyframe. A Track's array of Keyframes is sorted by frame.
+
+Keyframe {
     frame:         u16
-    texture_idx:   u8    (index into TextureNames)
-    palette_idx:   u8    (index into PaletteNames)
+    texture_idx:   u8    (index into TextureNames to use as texture Name)
+    palette_idx:   u8    (index into PaletteNames to use as palette Name)
 }
 
 
