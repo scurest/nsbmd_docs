@@ -333,7 +333,7 @@ Multiply Current Matrix with Bone Matrix (0x06, 0x26, 0x46, 0x66)
   the parent of B. I don't think it's used at all at runtime.
 
 Unknown (0x07, 0x47)
-  1 parameter
+  1 parameter (2 for 0x47?)
 
 Unknown (0x08)
   1 parameter
