@@ -517,7 +517,7 @@ BoneMatrix {
         ignored:   bits(11,16)
     }
 
-    (used for rotation matrix; unknown why its here)
+    (used for rotation matrix; it's here for alignment reasons)
     m0:      num(1.3.12)
 
     (translation; default is (0 0 0))
