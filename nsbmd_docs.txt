@@ -16,9 +16,9 @@ Documented formats:
     NSBTX (textures, palettes)
     NSBCA (skeletal animations)
     NSBTP (pattern animations)
+    NSBTA (material animations)
 
 Undocumented formats:
-    NSBTA
     NSBMA
     NSBVA
 
@@ -140,6 +140,7 @@ An NSBMD contains MDLs (usually one) and TEXs (usually zero or one).
 An NSBTX contains TEXs.
 An NSBCA contains JNTs.
 An NSBTP contains PATs.
+An NSBTA contains SRTs.
 
 NSBMD {
     Container  (expected stamp = "BMD0")
@@ -152,6 +153,9 @@ NSBCA {
 }
 NSBTP {
     Container  (expected stamp = "BTP0")
+}
+NSBTA {
+    Container  (expected stamp = "BTA0")
 }
 
 
@@ -912,6 +916,62 @@ Keyframe {
     texture_idx:   u8    (index into TextureNames to use as texture Name)
     palette_idx:   u8    (index into PaletteNames to use as palette Name)
 }
+
+
+Material Animations
+===================
+(Warning: This section is highly incomplete!)
+An SRT is a subfile containing MaterialAnimations.
+
+SRT {
+    stamp:        u8[4]    (= "SRT0")
+    filesize:     u32      (total filesize of this SRT)
+
+    material_animations:   NameList(u32)
+    (each u32 gives the offset to a MaterialAnimation relative to this SRT)
+}
+
+A MaterialAnimation is an animation that varies Material parameters in a Model.
+For example, it can vary UV translation to do texture scrolling effects.
+
+MaterialAnimation {
+    unknown:          u8[4]  ("M\0AT"?)
+    num_frames:       u16
+    unknown:          u16
+
+    tracks:           NameList(Track)
+}
+
+Each Track targets a Material with the same Name as the Track, and animates its
+parameters. A Track consists of 5 Channels.
+
+Track {
+    unknown_channels:       Channel[3]
+
+    (targets the U-translation for texture UVs)
+    u_translation_channel:  Channel
+
+    (targets the V-translation for texture UVs)
+    v_translation_channel:  Channel
+}
+
+Channel {
+    num_frames:   u16
+    dummy?:       u8      (always 0?)
+    flags?:       u8      (typically has one or two bits set, so possibly flags)
+
+    if flags == 16 {
+        offset:   u32
+    } else {
+        unknown:  u8[4]
+    }
+}
+
+For channels[3] and channels[4], if flags == 16, then offset points to a
+num(1.10.5)[num_frames] array containing the values of the UV offset at each
+frame.
+
+Other cases are unknown.
 
 
 Textures & Palettes
