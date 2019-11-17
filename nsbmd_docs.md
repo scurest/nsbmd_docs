@@ -1,96 +1,103 @@
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Nintendo DS NSBMD Model Format Docs
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Nintendo DS NSBMD Model Format Docs
 
-This is documentation for the binary format of the NSB__ files (NSBMD, NSBTX,
+This is documentation for the binary format of the `NSB__` files (`NSBMD`, `NSBTX`,
 etc.) used for 3D models, animations, etc. in Nintendo DS games.
 
 You will need the GBATEK docs on the NDS GPU handy while reading:
 <https://problemkaputt.de/gbatek.htm#ds3dvideo>.
 
-DOCUMENTATION IS BASED ON REVERSE ENGINEERING. ASSUME IT IS SPECULATIVE,
-INCOMPLETE, AND CONTAINS ERRORS.
+**DOCUMENTATION IS BASED ON REVERSE ENGINEERING. ASSUME IT IS SPECULATIVE,
+INCOMPLETE, AND CONTAINS ERRORS**.
 
 Documented formats:
-    NSBMD (models, textures, palettes)
-    NSBTX (textures, palettes)
-    NSBCA (skeletal animations)
-    NSBTP (pattern animations)
-    NSBTA (material animations)
+
+- NSBMD (models, textures, palettes)
+- NSBTX (textures, palettes)
+- NSBCA (skeletal animations)
+- NSBTP (pattern animations)
+- NSBTA (material animations)
 
 Undocumented formats:
-    NSBMA
-    NSBVA
+
+- NSBMA
+- NSBVA
 
 Previous documentation:
-  kiwi.ds NSBMD docs
+
+- kiwi.ds NSBMD docs
+  
   <http://sites.google.com/site/kiwids/nsbmd.html>
-  lowlines Nitro docs
+- lowlines Nitro docs
+
   <https://web.archive.org/web/20180326163503/http://llref.emutalk.net/docs/>
-  Gericom's EveryFileExplorer (Source Code)
+- Gericom's EveryFileExplorer (Source Code)
+
   <https://github.com/Gericom/EveryFileExplorer/blob/master/NDS/NitroSystem/G3D/>
 
 This document is based on practical experience implementing a viewer:
 <https://github.com/scurest/apicula>.
 
+## Terminology
 
-Terminology
-===========
 I have heard the etymology NSBMD = "New Super Mario Bros. Model Data".
 
 All the names in this document (eg. Mesh, BoneMatrix, etc.) have been invented
 for expository purposes.
 
+## Conventions
 
-Conventions
-===========
 All data is little-endian.
 
-u8, u16, and u32 are unsigned 8, 16, and 32-bit unsigned integers, respectively.
+`u8`, `u16`, and `u32` are unsigned 8, 16, and 32-bit unsigned integers, respectively.
 
-num(X.Y.Z) is a fixed-point number. The next (X+Y+Z) bits should be read
-and interpreted as an unsigned integer (if X is 0) or a signed twos-complement
-integer (if X is 1). The denoted number is this integer times 2^(-Z).
+`num(X.Y.Z)` is a fixed-point number. The next `(X+Y+Z)` bits should be read
+and interpreted as an unsigned integer `(if X is 0)` or a signed twos-complement
+integer `(if X is 1)`. The denoted number is this integer times 2^(-Z).
 
-    Example: num(1.19.12) is the number type used by the DS GPU. Note it is
-    u32-sized. In it, 0x1000 represents the number 1.
+Example:
+> `num(1.19.12)` is the number type used by the DS GPU. Note it is
+> `u32`-sized. In it, `0x1000` represents the number `1`.
 
-Arrays are written type[length], ex. u8[3] is an array of three u8s.
+Arrays are written `type[length]`, ex. `u8[3]` is an array of three `u8s`.
 
-Arrays of unknown length are written type[]. You can index into these if you
+Arrays of unknown length are written `type[]`. You can index into these if you
 have an index, but you can't iterate over them.
 
-Offsets usually have names ending with _off. Offset are always in bytes. I'll
-alway say what an offset is relative to. Add the offset to the location of
+Offsets usually have names ending with `_off`. Offset are always in bytes. I'll
+always say what an offset is relative to. Add the offset to the location of
 whatever its relative to to find the actual data.
 
 Bit-fields are written like this
 
+```
 u8 {
     low_nibble:  bits(0,4)
     high_nibble: bits(4,8)
 }
+```
 
 Matrix conventions are as in mathematics: Vectors are column-vectors.
-Application of a matrix M to a vector v is Mv. Matrix multiplication AB is "B
+Application of a matrix `M` to a vector `v` is `Mv`. Matrix multiplication `AB` is "B
 followed by A". (Note: this is the opposite convention of the one in the
 GBATEK docs.)
 
+## Common Idioms
 
-Common Idioms
-=============
 These elements occur in multiple places.
 
 A Name is a human-readable, null-padded, 16-byte ASCII string.
 
+```
 Name {
     name:    u8[16]
 }
+```
 
-A NameList(T) (T is some type) is a list of Ts, each T having a Name. Usually T
+A `NameList(T)` (`T` is some type) is a list of `Ts`, each `T` having a Name. Usually `T`
 is going to be an offset to where the actual data for that element is located.
-Names appear to always be unique within a NameList.
+Names appear to always be unique within a `NameList`.
 
+```
 NameList(T) {
     dummy:    u8
     count:    u8   (number of elements)
@@ -111,17 +118,18 @@ NameList(T) {
     data:     T[count]
     names:    Name[count]
 }
+```
 
+## Containers
 
-Containers
-==========
-A Container is the top-level object in the binary format of a NSB__ file. A
+A Container is the top-level object in the binary format of a `NSB__` file. A
 Container holds subfiles. Subfiles, in turn, hold individual models, animations,
 etc.
 
 Containers and subfiles start with a four-byte stamp (magic number) that
 identifies what kind of data it stores.
 
+```
 Container {
     Header {
         stamp:           u8[4]   (depends on kind of Container, see below)
@@ -135,15 +143,17 @@ Container {
     subfile_offs:    u32[num_subfiles]
     (each u32 points to a subfile relative to the Container)
 }
+```
 
 The different kinds of Containers follow:
 
-An NSBMD contains MDLs (usually one) and TEXs (usually zero or one).
-An NSBTX contains TEXs.
-An NSBCA contains JNTs.
-An NSBTP contains PATs.
-An NSBTA contains SRTs.
+- An `NSBMD` contains `MDLs` (usually one) and `TEXs` (usually zero or one).
+- An `NSBTX` contains `TEXs`.
+- An `NSBCA` contains `JNTs`.
+- An `NSBTP` contains `PATs`.
+- An `NSBTA` contains `SRTs`.
 
+```
 NSBMD {
     Container  (expected stamp = "BMD0")
 }
@@ -159,12 +169,13 @@ NSBTP {
 NSBTA {
     Container  (expected stamp = "BTA0")
 }
+```
 
+## Models
 
-Models
-======
-An MDL is a subfile containing Models.
+An `MDL` is a subfile containing Models.
 
+```
 MDL {
     stamp:        u8[4]  (= "MDL0")
     filesize:     u32    (total filesize of this MDL)
@@ -172,11 +183,13 @@ MDL {
     models:   NameList(u32)
     (each u32 gives the offset to a Model relative to this MDL)
 }
+```
 
-A Model is 3D model. The process of drawing a Model consists of executing a list
-of RenderCommands, which calculate skinning matrices, set material properties,
-and draw the individual pieces of the Model (the Meshes).
+A `Model` is 3D model. The process of drawing a `Model` consists of executing a list
+of `RenderCommands`, which calculate skinning matrices, set material properties,
+and draw the individual pieces of the `Model` (the `Meshes`).
 
+```
 Model {
     filesize:          u32    (size of Model+all its data?)
 
@@ -220,18 +233,22 @@ BoundingBox {
     y_max:    num(1.3.12)
     z_max:    num(1.3.12)
 }
+```
 
---------
+---
 
-A MeshList stores Meshes.
+A `MeshList` stores `Meshes`.
 
+```
 MeshList {
     NameList(u32)    (each u32 is the offset of a Mesh relative to this MeshList)
 }
+```
 
-A Mesh contains actual vertex data in the form of a blob of NDS GPU commands. To
-draw a Mesh, you just submit the blob of commands to the GPU.
+A `Mesh` contains actual vertex data in the form of a blob of NDS GPU commands. To
+draw a `Mesh`, you just submit the blob of commands to the GPU.
 
+```
 Mesh {
     dummy:     u16
     size:      u16   (=16, possibly the size of Mesh?)
@@ -239,30 +256,34 @@ Mesh {
     cmds_off:  u32   (relative to this Mesh)
     cmds_len:  u32
 }
+```
 
-cmds_off points to a u8[cmds_len] blob containing the GPU commands.
+`cmds_off` points to a `u8[cmds_len]` blob containing the GPU commands.
 
 A blob of GPU commands is stored as a sequence of packets. Each packet encodes
-four GPU commands as a sequence of u32s. A GPU command is an 8-bit opcode and
-some number of u32 parameters. The first u32 in a packet gives the four opcodes
+four GPU commands as a sequence of `u32s`. A GPU command is an 8-bit opcode and
+some number of `u32` parameters. The first `u32` in a packet gives the four opcodes
 of the commands, followed by the parameters of the first command, then the
 parameters of the second, etc.
 
 See the GBATEK docs for more info about the binary format and semantics of GPU
 commands.
 
-Only certain commands appear in a Mesh. Here is a list:
+Only certain commands appear in a `Mesh`. Here is a list:
 
+```
 NOP (0x0)         MTX_RESTORE (0x14)   MTX_SCALE (0x1b)    BEGIN_VTXS (0x40)
 END_VTXS (0x41)   VTX_16 (0x23)        VTX_10 (0x24)       VTX_XY (0x25)
 VTX_XZ (0x26)     VTX_YZ (0x27)        VTX_DIFF (0x28)     TEXCOORD (0x22)
 COLOR (0x20)      NORMAL (0x21)
+```
 
---------
+---
 
-The RenderCommandList is the script that you run to draw the Model. Each render
-command consists of a u8 opcode and some number of u8 parameters.
+The `RenderCommandList` is the script that you run to draw the `Model`. Each render
+command consists of a `u8` opcode and some number of `u8` parameters.
 
+```
 RenderCommandList {
     loop {
         RenderCommand {
@@ -274,12 +295,13 @@ RenderCommandList {
         }
     }
 }
+```
 
 The low five bits of the opcode determine the operation to perform. The three
 high bits modify the behavior of the operation.
 
 Known render commands:
-
+```
 Nop (0x00, 0x40, 0x80)
   0 parameters
   Does nothing? Difference between opcodes is unknown.
@@ -391,23 +413,27 @@ Unknown (0x0c)
 
 Unknown (0x0d)
   2 parameters
+```
 
---------
+---
 
-A MaterialList contains Materials, and what texture/palette Name they should be
+A `MaterialList` contains `Materials`, and what texture/palette Name they should be
 paired with.
 
+```
 MaterialList {
     texture_pairings_off:   u16   (relative to this MaterialList)
     palette_pairings_off:   u16   (relative to this MaterialList)
 
     NameList(u32)       (each u32 is the offset of a Material relative to this MaterialList)
 }
+```
 
-A Material is a bunch of GPU state (eg. colors, whether backface culling is
-enabled, etc.) to be set when the Material is bound. It also determines the
-texture/palette to use, though that isn't stored in this Material object itself.
+A `Material` is a bunch of GPU state (eg. colors, whether backface culling is
+enabled, etc.) to be set when the `Material` is bound. It also determines the
+texture/palette to use, though that isn't stored in this `Material` object itself.
 
+```
 Material {
     dummy:             u16
     size:              u16    (size of this Material in bytes)
@@ -429,13 +455,15 @@ Material {
     (TODO: the remaining fields are unknown but should comprise at least the
      texcoord transform matrix, if used)
 }
+```
 
-teximage_params is the u32 parameter to the GPU command TEXIMAGE_PARAMS (opcode
-0x2a). See the GBATEK documentation for details. Only some of its fields are
+`teximage_params` is the `u32` parameter to the GPU command `TEXIMAGE_PARAMS` (opcode
+`0x2a`). See the GBATEK documentation for details. Only some of its fields are
 stored here; the others are zeroed out. They are stored in the teximage_params
-in the Texture object. These two teximage_param u32s are or-ed together to give
-the final argument to TEXIMAGE_PARAMS. The fields stored here are:
+in the Texture object. These two teximage_param `u32s` are or-ed together to give
+the final argument to `TEXIMAGE_PARAMS`. The fields stored here are:
 
+```
 u32 {
     repeat_s:     bits(16,17)
     repeat_t:     bits(17,18)
@@ -443,14 +471,16 @@ u32 {
     mirror_t:     bits(19,20)
     texcoord_transform_mode:  bits(30,32)
 }
+```
 
-TexturePairings and PalettePairings pair Materials with the Names of the
-textures/palettes they should use. The precise mechanism by which a Name is
+`TexturePairings` and `PalettePairings` pair `Materials` with the `Names` of the
+textures/palettes they should use. The precise mechanism by which a `Name` is
 resolved to an actual texture or palette is unknown but it appears to be at
 least partially controllable from game code. In the simplest case, there will be
-a TEX in the same NSBMD as this Model, and you can look for a Texture/Palette
+a `TEX` in the same `NSBMD` as this Model, and you can look for a `Texture`/`Palette`
 with the given Name there.
 
+```
 TexturePairingList {
     NameList(MaterialIdxList)
     (each Name gives a texture name that applies to all the Materials in the MaterialIdxList)
@@ -467,42 +497,47 @@ MaterialIdxList {
     count:     u8
     dummy:     u8
 }
+```
 
-This somewhat unusual way of associating textures/palette Names with Materials
-(as opposed to simply having a texture_name/palette_name field in the Material)
-saves space when many Materials share texture/palette Names or have no
+This somewhat unusual way of associating textures/palette Names with `Materials`
+(as opposed to simply having a texture_name/palette_name field in the `Material`)
+saves space when many `Materials` share texture/palette `Names` or have no
 texture/palette. (Is this its only goal?)
 
---------
+---
 
-A BoneList stores BoneMatrices.
+A `BoneList` stores `BoneMatrices`.
 
+```
 BoneList {
     NameList(u32)    (each u32 points to a BoneMatrix; relative to this BoneList)
 }
+```
 
-A BoneMatrix stores the local-to-parent transform of some bone. A BoneMatrix is
+A `BoneMatrix` stores the local-to-parent transform of some bone. A `BoneMatrix` is
 a TRS transform (that is, it consists of a scaling, followed by a rotation,
 followed by a translation). It is determined by seven TRS properties
-
-    translation X       rotation       scale X
-    translation Y                      scale Y
-    translation Z                      scale Z
+```
+translation X       rotation       scale X
+translation Y                      scale Y
+translation Z                      scale Z
+```
 
 Translation and scale components are real numbers. The rotation is a 3x3 matrix.
 The binary coding for rotation matrices tends to favor true rotations (ie.
 orthogonal matrices), although it is possible to encode a non-rotation matrix as
 the "rotation" of a TRS transform.
 
-When a Model is animated by an Animation, the only thing that changes are its
-BoneMatrices.
+When a `Model` is animated by an `Animation`, the only thing that changes are its
+`BoneMatrices`.
 
-NOTE: a Model doesn't contain any actual bones or skeleton information (but see
-the parent_idx parameter to render command 0x06); that has all been compiled
+**NOTE**: a `Model` doesn't contain any actual bones or skeleton information (but see
+the `parent_idx` parameter to render command `0x06`); that has all been compiled
 down to an imperative list of rendering commands that build up all the necessary
-skinning matrices directly. The BoneMatrices just store the data from the bones
+skinning matrices directly. The `BoneMatrices` just store the data from the bones
 that are needed by these rendering commands.
 
+```
 BoneMatrix {
     u16 {
         t:         bits(0,1)    (controls if there's a translation)
@@ -554,20 +589,24 @@ BoneMatrix {
         }
     }
 }
+```
 
-If rp == 1, the six values
+If `rp == 1`, the six values
 
-    form     neg_one     neg_c     neg_d      a       b
+```
+form     neg_one     neg_c     neg_d      a       b
+```
 
-determine the rotation matrix as though it were given by a PivotMatrix; see the
-definition of PivotMatrix in the animation section.
+determine the rotation matrix as though it were given by a `PivotMatrix`; see the
+definition of `PivotMatrix` in the animation section.
 
---------
+---
 
-InvBindMatrices are 4x4 matrices used in computing the skinning matrix for
-render command 0x09. If a Model doesn't use this command, it doesn't need to
-have any, but many Models have them anyway.
+`InvBindMatrices` are 4x4 matrices used in computing the skinning matrix for
+render command `0x09`. If a `Model` doesn't use this command, it doesn't need to
+have any, but many `Models` have them anyway.
 
+```
 InvBindMatrices {
     InvBindMatrix[]
 }
@@ -576,15 +615,16 @@ InvBindMatrix {
     matrix:   num(1.19.12)[12]    (3x4 matrix; column-major order)
     unknown:  num(1.19.12)[9]     (often seems to be the linear part of matrix; used for normals maybe?)
 }
+```
 
 Only the upper 3x4 block of the 4x4 inverse bind matrix is stored; the final row
-is always (0 0 0 1). (NOTE: the NDS GPU can do math on 3x4 matrices directly.)
+is always `(0 0 0 1)`. (NOTE: the NDS GPU can do math on 3x4 matrices directly.)
 
+## Animations
 
-Animations
-==========
-A JNT is a subfile containing Animations.
+A JNT is a subfile containing `Animations`.
 
+```
 JNT {
     stamp:        u8[4]    (= "JNT0")
     filesize:     u32      (total filesize of this JNT)
@@ -592,14 +632,16 @@ JNT {
     animations:   NameList(u32)
     (each u32 gives the offset to an Animation relative to this JNT)
 }
+```
 
-An Animation is a skeletal animation of a Model. It changes the values of the
-BoneMatrices in a Model over time. All animations are frame-based, so "time"
+An `Animation` is a skeletal animation of a `Model`. It changes the values of the
+BoneMatrices in a `Model` over time. All animations are frame-based, so "time"
 always means "frame number".
 
-An Animation contains a collection of Tracks. A Track targets one of the
-BoneMatrices in a Model and tells you what its value should be at each time.
+An `Animation` contains a collection of `Tracks`. A `Track` targets one of the
+`BoneMatrices` in a `Model` and tells you what its value should be at each time.
 
+```
 Animation {
     unknown:       u8[4]     (="J\0AC", is this a stamp?)
     num_frames:    u16
@@ -612,25 +654,29 @@ Animation {
     track_offs:  u16[num_tracks]
     (each offset points to an AnimationTrack; relative to this Animation)
 }
+```
 
-PivotMatrices and BasisMatrices store rotation matrices that will be used in the
+`PivotMatrices` and `BasisMatrices` store rotation matrices that will be used in the
 curve data below
 
+```
 PivotMatrices {
     PivotMatrix[]
 }
 BasisMatrices {
     BasisMatrix[]
 }
+```
 
-A Track consists of channels. A channel is a connection between one of the seven
-TRS properties and a Curve, saying what the value of that TRS property should be
+A `Track` consists of channels. A channel is a connection between one of the seven
+TRS properties and a `Curve`, saying what the value of that TRS property should be
 over time.
 
-OPEN QUESTION: if a track doesn't have a channel for a particular TRS property,
+**OPEN QUESTION**: if a track doesn't have a channel for a particular TRS property,
 what should the value of that property be? (eg. should it retain the value it
 has in the Model?)
 
+```
 Track {
     (this u16 determine which channels are present, and, if they are present,
      whether their Curve is constant or sampled (see below))
@@ -669,11 +715,13 @@ Track {
         Curve     (scale Z)
     }
 }
+```
 
-A Curve is a function mapping time to values (either a real number for
+A `Curve` is a function mapping time to values (either a real number for
 translation/scale components, or a 3x3 matrix for rotations). It can either be
 constant, in which case it is defined by a single value
 
+```
   ^
   |
   |_____________
@@ -681,10 +729,12 @@ constant, in which case it is defined by a single value
   |
   '------------->
     time
+```
 
 or sampled, in which case it is defined by a set of discrete (frame number,
 sample value) pairs.
 
+```
   ^        .
   |  .     |
   |  |  .  |
@@ -692,10 +742,12 @@ sample value) pairs.
   |  |  |  |  |
   '--+--+--+--+->
     time
+```
 
-OPEN QUESTION: how should a sampled curve be evaluated at a frame between two
+**OPEN QUESTION**: how should a sampled curve be evaluated at a frame between two
 sample times?
 
+```
 Curve {
     if curve is constant {
         (the constant value of the curve follows; depends on the type of
@@ -724,29 +776,34 @@ Curve {
         samples_off:      u32    (relative to the containing Animation)
     }
 }
+```
 
 A sampled curve is always sampled at a fixed rate between two endpoints: one
 sample is stored at each of the frames
 
-    start_frame
-    start_frame + rate
-    start_frame + 2*rate
-    ...
-    end_frame - 2*rate
-    end_frame - rate
+```
+start_frame
+start_frame + rate
+start_frame + 2*rate
+...
+end_frame - 2*rate
+end_frame - rate
+```
 
-The rate is 2^(log_rate). Since the log_rate field is 2-bits, the possible rates
+The rate is `2^(log_rate)`. Since the `log_rate` field is 2-bits, the possible rates
 are 1, 2, 4, and 8. I have never seen 8.
 
 The total number of samples is therefore
+```
+num_samples = (end_frame - start_frame) / rate
+```
 
-    num_samples = (end_frame - start_frame) / rate
+**ASSUMPTION**: start_frame and end_frame are divisible by the rate.
 
-ASSUMPTION: start_frame and end_frame are divisible by the rate.
-
-samples_off points to the array of num_samples sample values. The format of a
+`samples_off` points to the array of `num_samples` sample values. The format of a
 sample value depends on the type of channel and the width field
 
+```
 if translation channel {
     if width == 0 {
         sample:   num(1.19.12)
@@ -766,26 +823,30 @@ if scale channel {
         unknown:  num(1.3.12)
     }
 }
+```
 
-A RotMatrixIdx points to a rotation matrix stored in the PivotMatrices or
-BasisMatrices arrays for this Animation. The highest bit tells you which array
+A `RotMatrixIdx` points to a rotation matrix stored in the `PivotMatrices` or
+`BasisMatrices` arrays for this `Animation`. The highest bit tells you which array
 it's in, and the low bits give the index into that array.
 
+```
 RotMatrixIdx {
     u16 {
         index: bits(0,15)
         is_pivot: bits(15,16)
     }
 }
+```
 
-If is_pivot is set, use PivotMatrices[index]; otherwise, use
-BasisMatrices[index].
+If `is_pivot` is set, use `PivotMatrices[index]`; otherwise, use
+`BasisMatrices[index]`.
 
---------
+---
 
-A PivotMatrix encodes a rotation matrix in 3 u16s. It is good for representing
+A `PivotMatrix` encodes a rotation matrix in 3 `u16s`. It is good for representing
 rotations where the axis of rotation is the X, Y, or Z axis.
 
+```
 PivotMatrix {
     u16 {
         form:     bits(0,4)
@@ -797,53 +858,60 @@ PivotMatrix {
     a:        num(1.3.12)
     b:        num(1.3.12)
 }
+```
 
-Let i = +1 if neg_one is unset; -1 if it is set
-Let c = +a if neg_c is unset; -a if it is set
-Let d = +b if neg_d is unset; -b if it is set
+- Let i = +1 if neg_one is unset; -1 if it is set
+- Let c = +a if neg_c is unset; -a if it is set
+- Let d = +b if neg_d is unset; -b if it is set
 
 The final matrix then depends on form as
+```
+If form=0    If form=1    If form=2
+[ i     ]    [   a c ]    [   a c ]
+[   a c ]    [ i     ]    [   b d ]
+[   b d ]    [   b d ]    [ i     ]
 
-    If form=0    If form=1    If form=2
-    [ i     ]    [   a c ]    [   a c ]
-    [   a c ]    [ i     ]    [   b d ]
-    [   b d ]    [   b d ]    [ i     ]
+If form=3    If form=4    If form=5
+[   i   ]    [ a   c ]    [ a   c ]
+[ a   c ]    [   i   ]    [ b   d ]
+[ b   d ]    [ b   d ]    [   i   ]
 
-    If form=3    If form=4    If form=5
-    [   i   ]    [ a   c ]    [ a   c ]
-    [ a   c ]    [   i   ]    [ b   d ]
-    [ b   d ]    [ b   d ]    [   i   ]
+If form=6    If form=7    If form=8
+[     i ]    [ a c   ]    [ a c   ]
+[ a c   ]    [     i ]    [ b d   ]
+[ b d   ]    [ b d   ]    [     i ]
+```
 
-    If form=6    If form=7    If form=8
-    [     i ]    [ a c   ]    [ a c   ]
-    [ a c   ]    [     i ]    [ b d   ]
-    [ b d   ]    [ b d   ]    [     i ]
+---
 
---------
-
-A BasisMatrix encodes a rotation matrix in 5 u16s. It encodes an arbitrary
+A `BasisMatrix` encodes a rotation matrix in 5 `u16s`. It encodes an arbitrary
 rotation by storing the 6 entries in the first two columns of the 3x3 matrix;
 the third column is then uniquely determined (by the cross-product).
 
+```
 BasisMatrix {
     xs:    u16[5]
 }
+```
 
 The precise computation for the matrix is extremely odd. There is probably some
 way to rewrite this function that makes it make sense. Credit for figuring this
 out goes to MKDS Course Modifier.
 
-Let ys = [xs[4], xs[0], xs[1], xs[2], xs[3]].
-Let zs = [0, 0, 0, 0, 0, 0].
+- Let `ys = [xs[4], xs[0], xs[1], xs[2], xs[3]]`.
+- Let `zs = [0, 0, 0, 0, 0, 0]`.
 
+```
 for i=0,1,2,3,4 {
     zs[i] = ys[i].bits(3,16)
     zs[5] <<= 3
     zs[5] |= ys[i].bits(0,3)
 }
+```
 
-The elements of zs are 13-bit numbers. Interpret them as num(1.0.12)s.
+The elements of `zs` are 13-bit numbers. Interpret them as num(1.0.12)s.
 
+```
         [ zs[1] ]
 Let A = [ zs[2] ].
         [ zs[3] ]
@@ -853,18 +921,21 @@ Let B = [ zs[0] ].
         [ zs[5] ]
 
 Let C = AxB (the cross-product of A and B).
+```
 
 Then A, B, and C are the columns of the final matrix
 
+```
   [ | | | ]
   [ A B C ]
   [ | | | ]
+```
 
+## Pattern Animations
 
-Pattern Animations
-==================
 A PAT is a subfile containing PatternAnimations.
 
+```
 PAT {
     stamp:        u8[4]    (= "PAT0")
     filesize:     u32      (total filesize of this PAT)
@@ -872,10 +943,12 @@ PAT {
     pattern_animations:   NameList(u32)
     (each u32 gives the offset to a PatternAnimation relative to this PAT)
 }
+```
 
-A PatternAnimation is an animation that varies the texture/palette the Materials
-in a Model use over time.
+A `PatternAnimation` is an animation that varies the texture/palette the Materials
+in a `Model` use over time.
 
+```
 PatternAnimation {
     unknown:            u8[4]
     num_frames:         u16
@@ -886,10 +959,12 @@ PatternAnimation {
 
     tracks:             NameList(Track)
 }
+```
 
-texture_names_off points to a list of texture names that will be used by the
-Tracks; similarly for pattern_names_off.
+`texture_names_off` points to a list of texture names that will be used by the
+`Tracks`; similarly for `pattern_names_off`.
 
+```
 TextureNames {
     Name[num_texture_names]
 }
@@ -897,10 +972,12 @@ TextureNames {
 PaletteNames {
     Name[num_palette_names]
 }
+```
 
-Each Track targets a Material with the same Name as the Track, and tells you
+Each `Track` targets a `Material` with the same Name as the `Track`, and tells you
 when its texture/palette should change.
 
+```
 Track {
     num_keyframes:   u32
     unknown:         u16
@@ -908,23 +985,27 @@ Track {
     offset:          u16
     (points to a Keyframe[num_keyframes]; relative to the containing PatternAnimation)
 }
+```
 
-Each Keyframe says that the texture/palette Names should change to the given
+Each `Keyframe` says that the texture/palette `Names` should change to the given
 values at the given frame. The values hold until they are changed at the next
-Keyframe. A Track's array of Keyframes is sorted by frame.
+`Keyframe`. A `Track`'s array of `Keyframes` is sorted by frame.
 
+```
 Keyframe {
     frame:         u16
     texture_idx:   u8    (index into TextureNames to use as texture Name)
     palette_idx:   u8    (index into PaletteNames to use as palette Name)
 }
+```
 
+## Material Animations
 
-Material Animations
-===================
-(Warning: This section is highly incomplete!)
+**(Warning: This section is highly incomplete!)**
+
 An SRT is a subfile containing MaterialAnimations.
 
+```
 SRT {
     stamp:        u8[4]    (= "SRT0")
     filesize:     u32      (total filesize of this SRT)
@@ -932,10 +1013,12 @@ SRT {
     material_animations:   NameList(u32)
     (each u32 gives the offset to a MaterialAnimation relative to this SRT)
 }
+```
 
-A MaterialAnimation is an animation that varies Material parameters in a Model.
+A `MaterialAnimation` is an animation that varies `Material` parameters in a `Model`.
 For example, it can vary UV translation to do texture scrolling effects.
 
+```
 MaterialAnimation {
     unknown:          u8[4]  ("M\0AT"?)
     num_frames:       u16
@@ -943,10 +1026,12 @@ MaterialAnimation {
 
     tracks:           NameList(Track)
 }
+```
 
-Each Track targets a Material with the same Name as the Track, and animates its
-parameters. A Track consists of 5 Channels.
+Each `Track` targets a `Material` with the same `Name` as the `Track`, and animates its
+parameters. A `Track` consists of 5 Channels.
 
+```
 Track {
     unknown_channels:       Channel[3]
 
@@ -956,7 +1041,9 @@ Track {
     (targets the V-translation for texture UVs)
     v_translation_channel:  Channel
 }
+```
 
+```
 Channel {
     num_frames:   u16
     dummy?:       u8      (always 0?)
@@ -968,28 +1055,29 @@ Channel {
         unknown:  u8[4]
     }
 }
+```
 
-For channels[3] and channels[4], if flags == 16, then offset points to a
-num(1.10.5)[num_frames] array containing the values of the UV offset at each
+For `channels[3]` and `channels[4]`, if `flags == 16`, then offset points to a
+`num(1.10.5)[num_frames]` array containing the values of the UV offset at each
 frame.
 
 Other cases are unknown.
 
+## Textures & Palettes
 
-Textures & Palettes
-===================
 A texture is a 2D array of texels. There are seven different texture formats on
 the DS's GPU, numbered 1-7. Texture format 7 encodes actual colors in its
 texels, but all the others must be used with a palette that determines the color
 each texel value should have. For details of texturing on the DS and how to
 decode textures, see the GBATEK documentation.
 
-A TEX is a subfile containing textures and palettes. However, unlike the other
+A `TEX` is a subfile containing textures and palettes. However, unlike the other
 subfiles, it is not divided into independently stored objects. Instead, it holds
 blocks of data that are shared by all the textures/palettes it contains. AIUI
 game code would transfer the blocks into VRAM at load time and then be able to
-use any of textures/palettes in the TEX.
+use any of textures/palettes in the `TEX`.
 
+```
 TEX {
     stamp:                 u8[4]     (= "TEX0")
     unknown:               u32
@@ -1009,23 +1097,27 @@ TEX {
     palettes_off:          u32       (points to PaletteList; relative to this TEX)
     block4_off:            u32
 }
+```
 
-The lengths of data blocks are stored shifted right by 3 (that's what shr_3
+The lengths of data blocks are stored shifted right by 3 (that's what `shr_3`
 means); shift them left by 3 to get the actual length.
 
-Block1 stores texture data for all texture formats except 5.
+`Block1` stores texture data for all texture formats except 5.
 
+```
 Block1 {
     u8[block1_len_shr_3 << 3]
 }
+```
 
-Block2 and Block3 store data for textures with format 5. These are
-block-compressed textures: each 4x4 block of texels is compressed into one u32
-and one u16. The data for a compressed texture is therefore two parallel arrays,
-one of u32s and one of u16s. The former is stored in Block2, the latter in
-Block3. For this reason, Block3 is always half the length of Block2 (in bytes)
-and texture data at offset X into Block2 is at offset X/2 into Block3.
+`Block2` and `Block3` store data for textures with format 5. These are
+block-compressed textures: each 4x4 block of texels is compressed into one `u32`
+and one `u16`. The data for a compressed texture is therefore two parallel arrays,
+one of `u32s` and one of `u16s`. The former is stored in `Block2`, the latter in
+`Block3`. For this reason, `Block3` is always half the length of `Block2` (in bytes)
+and texture data at offset X into `Block2` is at offset X/2 into `Block3`.
 
+```
 Block2 {
     u8[block2_len_shr_3 << 3]
 }
@@ -1033,15 +1125,19 @@ Block2 {
 Block3 {
     u8[block2_len_shr_3 << 2]
 }
+```
 
-Block4 stores palette data.
+`Block4` stores palette data.
 
+```
 Block4 {
     u8[block4_len_shr_3 << 3]
 }
+```
 
-A TextureList contains Textures.
+A `TextureList` contains `Textures`.
 
+```
 TextureList {
     NameList(Texture)
 }
@@ -1050,14 +1146,16 @@ Texture {
     teximage_params:    u32
     unknown:            u32
 }
+```
 
-teximage_params is the u32 parameter to the GPU command TEXIMAGE_PARAMS (opcode
-0x2a). See the GBATEK documentation for details. Only some of its fields are
+`teximage_params` is the `u32` parameter to the GPU command `TEXIMAGE_PARAMS` (opcode
+`0x2a`). See the GBATEK documentation for details. Only some of its fields are
 stored here; the others are zeroed out. They are stored in the teximage_params
-in a Material that uses this Texture. These two teximage_param u32s are or-ed
-together to give the final argument to TEXIMAGE_PARAMS. The fields stored here
+in a Material that uses this Texture. These two teximage_param `u32s` are or-ed
+together to give the final argument to `TEXIMAGE_PARAMS`. The fields stored here
 are:
 
+```
 u32 {
     offset_shr_3:    bits(0,16)      (shift left by 3 to get offset for Block1/2; by 2 for Block3)
     w:               bits(20,23)     (8 << w = width in the S-direction)
@@ -1065,9 +1163,11 @@ u32 {
     format:          bits(26,29)     (texture format)
     color0:          bits(29,30)     (whether color 0 is transparent; palette textures only)
 }
+```
 
-A PaletteList contains Palettes.
+A `PaletteList` contains `Palettes`.
 
+```
 PaletteList {
     NameList(Palette)
 }
@@ -1076,3 +1176,4 @@ Palette {
     offset_shr_3:    u16     (shift left by 3 to get the offset into Block4)
     unknown:         u16
 }
+```
